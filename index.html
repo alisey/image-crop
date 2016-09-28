@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Image Crop</title>
-    <link rel="stylesheet" href="crop-component.css">
-    <script src="transform-image.js"></script>
-    <script src="canvas-to-blob-polyfill.js"></script>
-    <script src="save-as.js"></script>
-    <script src="crop-component.js"></script>
+    <link rel="stylesheet" href="src/crop-component.css">
+    <script src="src/transform-image.js"></script>
+    <script src="src/canvas-to-blob-polyfill.js"></script>
+    <script src="src/save-as.js"></script>
+    <script src="src/crop-component.js"></script>
     <style>
         body {
             margin: 0;
@@ -18,7 +18,7 @@
 </head>
 <body>
     <script>
-        var crop = new CropComponent(300, 300, 'sunbathing.jpg');
+        var crop = new CropComponent(300, 300, 'test-images/sunbathing.jpg');
         document.body.appendChild(crop.getDOMNode());
     </script>
 </body>
