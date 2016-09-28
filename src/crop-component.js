@@ -188,16 +188,18 @@ CropComponent.prototype.getDownloadFilename = function(originalFilename, extensi
 };
 
 CropComponent.prototype.onDownloadClick = function() {
-    var canvas = transformImage(
+    var filename = this.getDownloadFilename(this.imageFilename, 'jpg');
+    transformImage(
         this.imageNode,
         this.width, this.height,
         this.rotation * Math.PI / 180,
         this.baseScale * this.scale,
         this.offsetX, this.offsetY,
-        '#bebebe'
+        '#bebebe',
+        function(canvas) {
+            canvas.toBlob(function(blob) {
+                saveAs(blob, filename);
+            }, 'image/jpeg', 0.95);
+        }
     );
-
-    canvas.toBlob(function(blob) {
-        saveAs(blob, this.getDownloadFilename(this.imageFilename, 'jpg'));
-    }.bind(this), 'image/jpeg', 0.95);
 };
