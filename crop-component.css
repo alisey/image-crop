@@ -1,0 +1,45 @@
+.crop-component-image-box {
+    background: #bebebe;
+    cursor: default;
+    overflow: hidden;
+    position: relative;
+}
+
+.crop-component-image {
+    bottom: 0;
+    left: 0;
+    margin: auto;
+    max-height: 100%;
+    max-width: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.crop-component-image-selected .crop-component-image-box {
+    cursor: move;
+}
+
+.crop-component-control {
+    margin-top: 1em;
+}
+
+.crop-component-control-manipulate {
+    display: none;
+}
+
+.crop-component-image-selected .crop-component-control-manipulate {
+    display: block;
+}
+
+.crop-component-input-file {
+    display: none;
+}
+
+.crop-component-input-rotate,
+.crop-component-input-scale {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
