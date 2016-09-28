@@ -52,6 +52,7 @@ CropComponent.prototype.initDOM = function() {
             '</div>' +
             '<div class="crop-component-control crop-component-control-manipulate">' +
                 '<button class="crop-component-download">Download</button>' +
+                '<div class="crop-component-download-spinner"><div></div><div></div><div></div></div>' +
             '</div>' +
         '</div>';
 
@@ -188,18 +189,23 @@ CropComponent.prototype.getDownloadFilename = function(originalFilename, extensi
 };
 
 CropComponent.prototype.onDownloadClick = function() {
-    var filename = this.getDownloadFilename(this.imageFilename, 'jpg');
-    transformImage(
-        this.imageNode,
-        this.width, this.height,
-        this.rotation * Math.PI / 180,
-        this.baseScale * this.scale,
-        this.offsetX, this.offsetY,
-        '#bebebe',
-        function(canvas) {
-            canvas.toBlob(function(blob) {
-                saveAs(blob, filename);
-            }, 'image/jpeg', 0.95);
-        }
-    );
+    var self = this;
+    var filename = self.getDownloadFilename(self.imageFilename, 'jpg');
+    self.node.classList.add('crop-component-downloading');
+    setTimeout(function() {
+        transformImage(
+            self.imageNode,
+            self.width, self.height,
+            self.rotation * Math.PI / 180,
+            self.baseScale * self.scale,
+            self.offsetX, self.offsetY,
+            '#bebebe',
+            function(canvas) {
+                canvas.toBlob(function(blob) {
+                    self.node.classList.remove('crop-component-downloading');
+                    saveAs(blob, filename);
+                }, 'image/jpeg', 0.95);
+            }
+        );
+    }, 10);
 };

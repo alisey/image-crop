@@ -43,3 +43,44 @@
     padding: 0;
     width: 100%;
 }
+
+.crop-component-downloading .crop-component-download {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.crop-component-download-spinner {
+    display: none;
+    margin-left: 3px;
+}
+
+.crop-component-downloading .crop-component-download-spinner {
+    display: inline-block;
+}
+
+.crop-component-download-spinner div {
+    width: 6px;
+    height: 6px;
+    background-color: #333;
+    border-radius: 100%;
+    display: inline-block;
+    margin: 0 3px;
+    animation: crop-component-download-spinner-animation 1.4s infinite ease-in-out both;
+}
+
+.crop-component-download-spinner :nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.crop-component-download-spinner :nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes crop-component-download-spinner-animation {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+    40% {
+        transform: scale(1);
+    }
+}
