@@ -33,7 +33,14 @@ function transformImage(image, cropWidth, cropHeight, angle, scale, offsetX, off
     var resizedCanvas = document.createElement('canvas');
     resizedCanvas.width = cropWidth;
     resizedCanvas.height = cropHeight;
-    pica.resizeCanvas(canvas, resizedCanvas, {}, function() {
-        callback(resizedCanvas);
-    });
+    pica.resizeCanvas(canvas, resizedCanvas,
+        {
+            unsharpAmount: 40,
+            unsharpRadius: 0.6,
+            unsharpThreshold: 2
+        },
+        function() {
+            callback(resizedCanvas);
+        }
+    );
 }
