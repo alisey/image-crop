@@ -11,6 +11,7 @@ function CropComponent(width, height, imageURL) {
     this.offsetX = 0;
     this.offsetY = 0;
     this.imageFilename = '';
+    this.imageBlobURL = '';
     this.dragging = false;
     this.dragStartPointerX = 0;
     this.dragStartPointerY = 0;
@@ -99,13 +100,12 @@ CropComponent.prototype.setImage = function(imageURL, imageFilename) {
 };
 
 CropComponent.prototype.onFileSelect = function(event) {
-    var fileReader = new FileReader();
-    fileReader.addEventListener('load', function() {
-        var blob = new Blob([fileReader.result]);
-        var blobURL = URL.createObjectURL(blob);
-        this.setImage(blobURL, event.target.value);
-    }.bind(this));
-    fileReader.readAsArrayBuffer(event.target.files[0]);
+    if (this.imageBlobURL && URL.revokeObjectURL) {
+        URL.revokeObjectURL(this.imageBlobURL);
+    }
+
+    this.imageBlobURL = URL.createObjectURL(event.target.files[0]);
+    this.setImage(this.imageBlobURL, event.target.value);
 };
 
 CropComponent.prototype.resetControls = function() {
