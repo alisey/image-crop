@@ -48,7 +48,7 @@ CropComponent.prototype.initDOM = function() {
             '</div>' +
             '<div class="crop-component-control crop-component-control-manipulate">' +
                 '<label>Scale</label>' +
-                '<input class="crop-component-input-scale" type="range" min="1" max="5" step="0.1" value="1">' +
+                '<input class="crop-component-input-scale" type="range" min="1" max="10" step="0.1" value="1">' +
             '</div>' +
             '<div class="crop-component-control crop-component-control-manipulate">' +
                 '<button class="crop-component-download">Download</button>' +
