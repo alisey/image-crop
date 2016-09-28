@@ -169,13 +169,40 @@ CropComponent.prototype.onDragEnd = function(event) {
 };
 
 CropComponent.prototype.onRotationChange = function() {
-    this.rotation = this.inputRotateNode.value;
+    var newRotation = this.inputRotateNode.value;
+
+    // Rotate as if the transform origin is at the center of the cropped area.
+    // Imagine putting a mark on the image at the center of the cropped area,
+    // find out where the mark would end up if we rotated the image around its
+    // center, compensate for that movement so that the mark stays in place.
+    var angle = (newRotation - this.rotation) * Math.PI / 180;
+    var oldX = -this.offsetX;
+    var oldY = -this.offsetY;
+    var newX = oldX * Math.cos(angle) - oldY * Math.sin(angle);
+    var newY = oldX * Math.sin(angle) + oldY * Math.cos(angle);
+    this.offsetX -= newX - oldX;
+    this.offsetY -= newY - oldY;
+
+    this.rotation = newRotation;
     this.applyTransformConstraints();
     this.applyTransform();
 };
 
 CropComponent.prototype.onScaleChange = function() {
-    this.scale = this.inputScaleNode.value;
+    var newScale = this.inputScaleNode.value;
+
+    // Scale as if the transform origin is at the center of the cropped area.
+    // Imagine putting a mark on the image at the center of the cropped area,
+    // find out where the mark would end up if we scaled the image around its
+    // center, compensate for that movement so that the mark stays in place.
+    var oldX = -this.offsetX;
+    var oldY = -this.offsetY;
+    var newX = oldX * newScale / this.scale;
+    var newY = oldY * newScale / this.scale;
+    this.offsetX -= newX - oldX;
+    this.offsetY -= newY - oldY;
+
+    this.scale = newScale;
     this.applyTransformConstraints();
     this.applyTransform();
 };
