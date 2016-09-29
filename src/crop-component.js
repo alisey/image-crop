@@ -44,11 +44,11 @@ CropComponent.prototype.initDOM = function() {
             '</div>' +
             '<div class="crop-component-control crop-component-control-manipulate">' +
                 '<label>Rotate</label>' +
-                '<input class="crop-component-input-rotate" type="range" min="-180" max="180" step="0.1" value="0">' +
+                '<input class="crop-component-input-rotate" type="range" min="-1" max="1" step="0.001" value="0">' +
             '</div>' +
             '<div class="crop-component-control crop-component-control-manipulate">' +
                 '<label>Scale</label>' +
-                '<input class="crop-component-input-scale" type="range" min="1" max="10" step="0.1" value="1">' +
+                '<input class="crop-component-input-scale" type="range" min="0" max="1" step="0.001" value="0">' +
             '</div>' +
             '<div class="crop-component-control crop-component-control-manipulate">' +
                 '<button class="crop-component-download">Download</button>' +
@@ -121,11 +121,32 @@ CropComponent.prototype.resetTransform = function() {
     this.offsetY = 0;
 };
 
-CropComponent.prototype.applyTransformConstraints = function() {
-    // Just making sure we don't offset the image beyond
-    // its axis-aligned bounding box.
+CropComponent.prototype.getImageBoundingBox = function() {
+    // Coordinates of the bottom right corner of the image relative to its
+    // center before rotation around the image center.
+    var x = this.imageNode.naturalWidth  * this.baseScale * this.scale / 2;
+    var y = this.imageNode.naturalHeight * this.baseScale * this.scale / 2;
 
-    var imageAABB = this.imageNode.getBoundingClientRect();
+    // Coordinates of the top right and bottom right corners after rotation.
+    var a = this.rotation * Math.PI;
+    var sinA = Math.sin(a);
+    var cosA = Math.cos(a);
+    var x1 = x * cosA - y * sinA;
+    var y1 = x * sinA + y * cosA;
+    var x2 = x * cosA + y * sinA;
+    var y2 = x * sinA - y * cosA;
+
+    // The remaining two corners are simply reflections of the first two.
+    return {
+        width:  Math.max(x1, x2, -x1, -x2) - Math.min(x1, x2, -x1, -x2),
+        height: Math.max(y1, y2, -y1, -y2) - Math.min(y1, y2, -y1, -y2)
+    };
+};
+
+CropComponent.prototype.applyTransformConstraints = function() {
+    // If the image bounding box is leaving the cropped area, push it back.
+
+    var imageAABB = this.getImageBoundingBox();
     var overflowX = Math.max(0, imageAABB.width  - this.width);
     var overflowY = Math.max(0, imageAABB.height - this.height);
 
@@ -138,8 +159,13 @@ CropComponent.prototype.applyTransformConstraints = function() {
 CropComponent.prototype.applyTransform = function() {
     this.imageNode.style.transform =
         'translate(' + this.offsetX + 'px, ' + this.offsetY + 'px) ' +
-        'rotate(' + this.rotation + 'deg) ' +
+        'rotate(' + (180 * this.rotation) + 'deg) ' +
         'scale(' + this.scale + ', ' + this.scale + ')';
+};
+
+CropComponent.prototype.updateTransform = function() {
+    this.applyTransformConstraints();
+    this.applyTransform();
 };
 
 CropComponent.prototype.onDragStart = function(event) {
@@ -157,8 +183,7 @@ CropComponent.prototype.onDragMove = function(event) {
     if (this.dragging) {
         this.offsetX = this.dragStartOffsetX + event.pageX - this.dragStartPointerX;
         this.offsetY = this.dragStartOffsetY + event.pageY - this.dragStartPointerY;
-        this.applyTransformConstraints();
-        this.applyTransform();
+        this.updateTransform();
     }
 };
 
@@ -175,7 +200,7 @@ CropComponent.prototype.onRotationChange = function() {
     // Imagine putting a mark on the image at the center of the cropped area,
     // find out where the mark would end up if we rotated the image around its
     // center, compensate for that movement so that the mark stays in place.
-    var angle = (newRotation - this.rotation) * Math.PI / 180;
+    var angle = (newRotation - this.rotation) * Math.PI;
     var oldX = -this.offsetX;
     var oldY = -this.offsetY;
     var newX = oldX * Math.cos(angle) - oldY * Math.sin(angle);
@@ -184,12 +209,11 @@ CropComponent.prototype.onRotationChange = function() {
     this.offsetY -= newY - oldY;
 
     this.rotation = newRotation;
-    this.applyTransformConstraints();
-    this.applyTransform();
+    this.updateTransform();
 };
 
 CropComponent.prototype.onScaleChange = function() {
-    var newScale = this.inputScaleNode.value;
+    var newScale = Math.pow(10, this.inputScaleNode.value);
 
     // Scale as if the transform origin is at the center of the cropped area.
     // Imagine putting a mark on the image at the center of the cropped area,
@@ -203,8 +227,7 @@ CropComponent.prototype.onScaleChange = function() {
     this.offsetY -= newY - oldY;
 
     this.scale = newScale;
-    this.applyTransformConstraints();
-    this.applyTransform();
+    this.updateTransform();
 };
 
 CropComponent.prototype.getDownloadFilename = function(originalFilename, extension) {
@@ -223,7 +246,7 @@ CropComponent.prototype.onDownloadClick = function() {
         transformImage(
             self.imageNode,
             self.width, self.height,
-            self.rotation * Math.PI / 180,
+            self.rotation * Math.PI,
             self.baseScale * self.scale,
             self.offsetX, self.offsetY,
             '#bebebe',
