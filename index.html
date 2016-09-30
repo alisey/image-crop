@@ -19,7 +19,14 @@
 </head>
 <body>
     <script>
-        var crop = new CropComponent(300, 300, 'test-images/1.jpg');
+        var crop = new CropComponent({
+            width: 300,
+            height: 300,
+            imageURL: 'test-images/1.jpg',
+            downloadEnabled: true,
+            uploadEnabled: true,
+            uploadURL: 'https://example.com/upload'
+        });
         document.body.appendChild(crop.getDOMNode());
     </script>
 </body>
