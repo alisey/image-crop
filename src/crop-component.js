@@ -5,8 +5,9 @@ var saveAs = window.saveAs;
 function CropComponent(options) {
     this.width = options.width;
     this.height = options.height;
-    this.downloadEnabled = options.downloadEnabled;
-    this.uploadEnabled = options.uploadEnabled;
+    this.enableFilePicker = options.enableFilePicker;
+    this.enableDownload = options.enableDownload;
+    this.enableUpload = options.enableUpload;
     this.uploadURL = options.uploadURL;
 
     this.baseScale = 1;
@@ -42,7 +43,7 @@ CropComponent.prototype.initDOM = function() {
             '<img class="crop-component-image" alt="">' +
         '</div>' +
         '<div class="crop-component-controls">' +
-            '<div class="crop-component-control">' +
+            '<div class="crop-component-control crop-component-control-file-picker">' +
                 '<button class="crop-component-faux-input-file">Choose image</button>' +
                 '<input class="crop-component-input-file" type="file" accept="image/*">' +
             '</div>' +
@@ -57,26 +58,27 @@ CropComponent.prototype.initDOM = function() {
             '<div class="crop-component-control crop-component-control-manipulate">' +
                 '<button class="crop-component-download">Download</button>' +
                 '<button class="crop-component-upload">Upload</button>' +
-                '<div class="crop-component-status"><div></div><div></div><div></div></div>' +
             '</div>' +
         '</div>';
 
     this.node = root;
     this.imageBoxNode = this.node.querySelector('.crop-component-image-box');
     this.imageNode = this.node.querySelector('.crop-component-image');
+    this.filePickerSectionNode = this.node.querySelector('.crop-component-control-file-picker');
     this.fauxInputFileNode = this.node.querySelector('.crop-component-faux-input-file');
     this.inputFileNode = this.node.querySelector('.crop-component-input-file');
     this.inputRotateNode = this.node.querySelector('.crop-component-input-rotate');
     this.inputScaleNode = this.node.querySelector('.crop-component-input-scale');
     this.downloadButtonNode = this.node.querySelector('.crop-component-download');
     this.uploadButtonNode = this.node.querySelector('.crop-component-upload');
-    this.statusNode = this.node.querySelector('.crop-component-status');
 
     this.node.style.width = this.width + 'px';
     this.imageBoxNode.style.width = this.width + 'px';
     this.imageBoxNode.style.height = this.height + 'px';
-    this.downloadButtonNode.style.display = this.downloadEnabled ? '' : 'none';
-    this.uploadButtonNode.style.display = this.uploadEnabled ? '' : 'none';
+
+    this.filePickerSectionNode.style.display = this.enableFilePicker ? '' : 'none';
+    this.downloadButtonNode.style.display = this.enableDownload ? '' : 'none';
+    this.uploadButtonNode.style.display = this.enableUpload ? '' : 'none';
 };
 
 CropComponent.prototype.initDOMEvents = function() {
@@ -273,19 +275,16 @@ CropComponent.prototype.getTransformedImageBlob = function(callback) {
 CropComponent.prototype.download = function() {
     var self = this;
     self.downloadButtonNode.disabled = true;
-    self.showStatus('progress');
 
     self.getTransformedImageBlob(function(blob) {
         saveAs(blob, self.getTransformedImageFilename());
         self.downloadButtonNode.disabled = false;
-        self.showStatus('');
     });
 };
 
 CropComponent.prototype.upload = function() {
     var self = this;
     self.uploadButtonNode.disabled = true;
-    self.showStatus('progress');
 
     self.getTransformedImageBlob(function(blob) {
         var form = new FormData();
@@ -293,15 +292,11 @@ CropComponent.prototype.upload = function() {
 
         var request = new XMLHttpRequest();
         request.open('POST', self.uploadURL);
-        request.addEventListener('load', function() {
-            self.showStatus('success');
-        });
+        request.addEventListener('load', function() { });
         request.addEventListener('error', function() {
-            self.showStatus('error');
+            alert('Upload error');
         });
-        request.addEventListener('abort', function() {
-            self.showStatus('error');
-        });
+        request.addEventListener('abort', function() { });
         request.addEventListener('loadend', function() {
             self.uploadButtonNode.disabled = false;
         });
@@ -309,7 +304,3 @@ CropComponent.prototype.upload = function() {
     });
 };
 
-CropComponent.prototype.showStatus = function(status) {
-    // @TODO: replace with animated icons
-    this.statusNode.textContent = status;
-};

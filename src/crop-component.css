@@ -48,32 +48,3 @@
 .crop-component-upload {
     margin-right: 1ex;
 }
-
-/*
-.crop-component-progress div {
-    width: 6px;
-    height: 6px;
-    background-color: #333;
-    border-radius: 100%;
-    display: inline-block;
-    margin: 0 3px;
-    animation: crop-component-progress-animation 1.4s infinite ease-in-out both;
-}
-
-.crop-component-progress :nth-child(1) {
-    animation-delay: -0.32s;
-}
-
-.crop-component-progress :nth-child(2) {
-    animation-delay: -0.16s;
-}
-
-@keyframes crop-component-progress-animation {
-    0%, 80%, 100% {
-        transform: scale(0);
-    }
-    40% {
-        transform: scale(1);
-    }
-}
-*/
