@@ -16,10 +16,6 @@
     top: 0;
 }
 
-.crop-component-image-selected .crop-component-image-box {
-    cursor: move;
-}
-
 .crop-component-control {
     margin-top: 1em;
 }

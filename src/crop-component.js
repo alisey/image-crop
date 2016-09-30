@@ -1,6 +1,7 @@
 // Dependencies
 var transformImage = window.transformImage;
 var saveAs = window.saveAs;
+var ImageMarkers = window.ImageMarkers;
 
 function CropComponent(options) {
     this.width = options.width;
@@ -8,6 +9,8 @@ function CropComponent(options) {
     this.enableFilePicker = options.enableFilePicker;
     this.enableDownload = options.enableDownload;
     this.enableUpload = options.enableUpload;
+    this.enableMarkers = options.enableMarkers;
+    this.maxMarkerCount = options.maxMarkerCount || 0;
     this.uploadURL = options.uploadURL;
 
     this.baseScale = 1;
@@ -17,11 +20,17 @@ function CropComponent(options) {
     this.offsetY = 0;
     this.imageFilename = '';
     this.imageBlobURL = '';
+    this.markers = new ImageMarkers(this.enableMarkers ? this.maxMarkerCount : 0);
+
     this.dragging = false;
+    this.dragStartTime = 0;
     this.dragStartPointerX = 0;
     this.dragStartPointerY = 0;
     this.dragStartOffsetX = 0;
     this.dragStartOffsetY = 0;
+    this.dragPreviousX = 0;
+    this.dragPreviousY = 0;
+    this.dragDistance = 0;
 
     this.initDOM();
     this.initDOMEvents();
@@ -79,6 +88,8 @@ CropComponent.prototype.initDOM = function() {
     this.filePickerSectionNode.style.display = this.enableFilePicker ? '' : 'none';
     this.downloadButtonNode.style.display = this.enableDownload ? '' : 'none';
     this.uploadButtonNode.style.display = this.enableUpload ? '' : 'none';
+
+    this.imageBoxNode.appendChild(this.markers.getDOMNode());
 };
 
 CropComponent.prototype.initDOMEvents = function() {
@@ -184,13 +195,17 @@ CropComponent.prototype.updateTransform = function() {
 };
 
 CropComponent.prototype.onDragStart = function(event) {
-    if (event.which === 1) {
+    if (event.which === 1 && !this.markers.wantToHandle(event)) {
         event.preventDefault(); // block native dragging and text selection
         this.dragging = true;
+        this.dragStartTime = Date.now();
         this.dragStartPointerX = event.pageX;
         this.dragStartPointerY = event.pageY;
         this.dragStartOffsetX = this.offsetX;
         this.dragStartOffsetY = this.offsetY;
+        this.dragPreviousX = event.pageX;
+        this.dragPreviousY = event.pageY;
+        this.dragDistance = 0;
     }
 };
 
@@ -199,12 +214,22 @@ CropComponent.prototype.onDragMove = function(event) {
         this.offsetX = this.dragStartOffsetX + event.pageX - this.dragStartPointerX;
         this.offsetY = this.dragStartOffsetY + event.pageY - this.dragStartPointerY;
         this.updateTransform();
+
+        this.dragDistance += Math.sqrt(
+            Math.pow(event.pageX - this.dragPreviousX, 2),
+            Math.pow(event.pageY - this.dragPreviousY, 2)
+        );
+        this.dragPreviousX = event.pageX;
+        this.dragPreviousY = event.pageY;
     }
 };
 
 CropComponent.prototype.onDragEnd = function(event) {
-    if (event.which === 1) {
+    if (this.dragging && event.which === 1) {
         this.dragging = false;
+        if (this.dragDistance < 4 && Date.now() - this.dragStartTime < 500) {
+            this.markers.addAtScreenCoords(event.clientX, event.clientY);
+        }
     }
 };
 
@@ -289,18 +314,25 @@ CropComponent.prototype.upload = function() {
     self.getTransformedImageBlob(function(blob) {
         var form = new FormData();
         form.append('image', blob, self.getTransformedImageFilename());
+        self.markers.getPoints().forEach(function(point) {
+            form.append('x[]', point.x);
+            form.append('y[]', point.y);
+        });
 
         var request = new XMLHttpRequest();
         request.open('POST', self.uploadURL);
-        request.addEventListener('load', function() { });
+        request.addEventListener('load', function() {
+            // ...
+        });
         request.addEventListener('error', function() {
             alert('Upload error');
         });
-        request.addEventListener('abort', function() { });
+        request.addEventListener('abort', function() {
+            // ...
+        });
         request.addEventListener('loadend', function() {
             self.uploadButtonNode.disabled = false;
         });
         request.send(form);
     });
 };
-

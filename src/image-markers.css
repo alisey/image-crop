@@ -1,0 +1,22 @@
+.image-markers {
+    position: relative;
+    left: 0;
+    top: 0;
+}
+
+.image-markers > div {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    transform: translate(-50%, -50%);
+    box-sizing: border-box;
+    border: 3px solid #F44336;
+    background: #FFF;
+    border-radius: 50%;
+    transition: width 0.3s, height 0.3s;
+}
+
+.image-markers > div:hover {
+    width: 18px;
+    height: 18px;
+}
