@@ -4,35 +4,19 @@ var saveAs = window.saveAs;
 var ImageMarkers = window.ImageMarkers;
 
 function CropComponent(options) {
-    this.width = options.width;
-    this.height = options.height;
+    this.width            = options.width;
+    this.height           = options.height;
     this.enableFilePicker = options.enableFilePicker;
-    this.enableDownload = options.enableDownload;
-    this.enableUpload = options.enableUpload;
-    this.enableMarkers = options.enableMarkers;
-    this.maxMarkerCount = options.maxMarkerCount || 0;
-    this.uploadURL = options.uploadURL;
+    this.enableDownload   = options.enableDownload;
+    this.enableUpload     = options.enableUpload;
+    this.maxMarkerCount   = options.enableMarkers && options.maxMarkerCount;
+    this.uploadURL        = options.uploadURL;
 
-    this.baseScale = 1;
-    this.scale = 1;
-    this.rotation = 0;
-    this.offsetX = 0;
-    this.offsetY = 0;
     this.imageFilename = '';
-    this.imageBlobURL = '';
-    this.markers = new ImageMarkers(this.enableMarkers ? this.maxMarkerCount : 0);
-    this.markers.setTransformOrigin(this.width / 2, this.height / 2);
+    this.markers = new ImageMarkers(this.maxMarkerCount || 0);
 
-    this.dragging = false;
-    this.dragStartTime = 0;
-    this.dragStartPointerX = 0;
-    this.dragStartPointerY = 0;
-    this.dragStartOffsetX = 0;
-    this.dragStartOffsetY = 0;
-    this.dragPreviousX = 0;
-    this.dragPreviousY = 0;
-    this.dragDistance = 0;
-
+    this.resetDrag();
+    this.resetTransform();
     this.initDOM();
     this.initDOMEvents();
 
@@ -46,9 +30,9 @@ CropComponent.prototype.getDOMNode = function() {
 };
 
 CropComponent.prototype.initDOM = function() {
-    var root = document.createElement('div');
-    root.className = 'crop-component';
-    root.innerHTML =
+    this.node = document.createElement('div');
+    this.node.className = 'crop-component';
+    this.node.innerHTML =
         '<div class="crop-component-image-box">' +
             '<img class="crop-component-image" alt="">' +
         '</div>' +
@@ -71,24 +55,23 @@ CropComponent.prototype.initDOM = function() {
             '</div>' +
         '</div>';
 
-    this.node = root;
-    this.imageBoxNode = this.node.querySelector('.crop-component-image-box');
-    this.imageNode = this.node.querySelector('.crop-component-image');
+    this.imageBoxNode          = this.node.querySelector('.crop-component-image-box');
+    this.imageNode             = this.node.querySelector('.crop-component-image');
     this.filePickerSectionNode = this.node.querySelector('.crop-component-control-file-picker');
-    this.fauxInputFileNode = this.node.querySelector('.crop-component-faux-input-file');
-    this.inputFileNode = this.node.querySelector('.crop-component-input-file');
-    this.inputRotateNode = this.node.querySelector('.crop-component-input-rotate');
-    this.inputScaleNode = this.node.querySelector('.crop-component-input-scale');
-    this.downloadButtonNode = this.node.querySelector('.crop-component-download');
-    this.uploadButtonNode = this.node.querySelector('.crop-component-upload');
+    this.fauxInputFileNode     = this.node.querySelector('.crop-component-faux-input-file');
+    this.inputFileNode         = this.node.querySelector('.crop-component-input-file');
+    this.inputRotateNode       = this.node.querySelector('.crop-component-input-rotate');
+    this.inputScaleNode        = this.node.querySelector('.crop-component-input-scale');
+    this.downloadButtonNode    = this.node.querySelector('.crop-component-download');
+    this.uploadButtonNode      = this.node.querySelector('.crop-component-upload');
 
-    this.node.style.width = this.width + 'px';
-    this.imageBoxNode.style.width = this.width + 'px';
+    this.node.style.width          = this.width  + 'px';
+    this.imageBoxNode.style.width  = this.width  + 'px';
     this.imageBoxNode.style.height = this.height + 'px';
 
     this.filePickerSectionNode.style.display = this.enableFilePicker ? '' : 'none';
-    this.downloadButtonNode.style.display = this.enableDownload ? '' : 'none';
-    this.uploadButtonNode.style.display = this.enableUpload ? '' : 'none';
+    this.downloadButtonNode.style.display    = this.enableDownload   ? '' : 'none';
+    this.uploadButtonNode.style.display      = this.enableUpload     ? '' : 'none';
 
     this.imageBoxNode.appendChild(this.markers.getDOMNode());
 };
@@ -113,6 +96,10 @@ CropComponent.prototype.initDOMEvents = function() {
 
 CropComponent.prototype.setImage = function(imageURL, imageFilename) {
     this.imageNode.onload = function() {
+        if (URL.revokeObjectURL) {
+            URL.revokeObjectURL(imageURL);
+        }
+
         this.node.classList.add('crop-component-image-selected');
         this.baseScale = Math.min(
             1, // don't upscale tiny images
@@ -120,23 +107,23 @@ CropComponent.prototype.setImage = function(imageURL, imageFilename) {
             this.height / this.imageNode.naturalHeight
         );
     }.bind(this);
+
+    this.reset();
     this.imageFilename = imageFilename;
     this.imageNode.src = imageURL;
-    this.resetControls();
-    this.resetTransform();
-    this.applyTransform();
-
-    this.markers.resetMarkers();
-    this.markers.resetTransform();
 };
 
 CropComponent.prototype.onFileSelect = function(event) {
-    if (this.imageBlobURL && URL.revokeObjectURL) {
-        URL.revokeObjectURL(this.imageBlobURL);
-    }
+    var url = URL.createObjectURL(event.target.files[0]);
+    this.setImage(url, event.target.value);
+};
 
-    this.imageBlobURL = URL.createObjectURL(event.target.files[0]);
-    this.setImage(this.imageBlobURL, event.target.value);
+CropComponent.prototype.reset = function() {
+    this.resetDrag();
+    this.resetControls();
+    this.resetTransform();
+    this.updateTransformCSS();
+    this.markers.removeAll();
 };
 
 CropComponent.prototype.resetControls = function() {
@@ -144,11 +131,35 @@ CropComponent.prototype.resetControls = function() {
     this.inputScaleNode.value = this.inputScaleNode.defaultValue;
 };
 
+CropComponent.prototype.resetDrag = function() {
+    this.dragging          = false;
+    this.dragStartTime     = 0;
+    this.dragStartPointerX = 0;
+    this.dragStartPointerY = 0;
+    this.dragStartOffsetX  = 0;
+    this.dragStartOffsetY  = 0;
+    this.dragPreviousX     = 0;
+    this.dragPreviousY     = 0;
+    this.dragDistance      = 0;
+};
+
 CropComponent.prototype.resetTransform = function() {
-    this.scale = 1;
-    this.rotation = 0;
-    this.offsetX = 0;
-    this.offsetY = 0;
+    this.baseScale = 1;
+    this.scale     = 1;
+    this.rotation  = 0;
+    this.offsetX   = 0;
+    this.offsetY   = 0;
+
+    this.markers.setTransform(this.getTransformForMarkers());
+};
+
+CropComponent.prototype.getTransformForMarkers = function() {
+    return {
+        scale: this.scale,
+        rotation: this.rotation,
+        offsetX: this.width  / 2 + this.offsetX,
+        offsetY: this.height / 2 + this.offsetY
+    };
 };
 
 CropComponent.prototype.getImageBoundingBox = function() {
@@ -174,37 +185,33 @@ CropComponent.prototype.applyTransformConstraints = function() {
     this.offsetY = Math.max(this.offsetY, -overflowY / 2);
 };
 
-CropComponent.prototype.applyTransform = function() {
+CropComponent.prototype.updateTransformCSS = function() {
     this.imageNode.style.transform =
         'translate(' + this.offsetX + 'px, ' + this.offsetY + 'px) ' +
         'rotate(' + 180 * this.rotation + 'deg) ' +
         'scale(' + this.scale + ', ' + this.scale + ')';
-
-    this.markers.updateTransform({
-        scale: this.scale,
-        rotation: this.rotation,
-        offsetX: this.offsetX,
-        offsetY: this.offsetY
-    });
 };
 
 CropComponent.prototype.updateTransform = function() {
     this.applyTransformConstraints();
-    this.applyTransform();
+    this.updateTransformCSS();
+    this.markers.updateTransform(this.getTransformForMarkers());
 };
 
 CropComponent.prototype.onDragStart = function(event) {
-    if (event.which === 1 && !this.markers.wantToHandle(event)) {
-        event.preventDefault(); // block native dragging and text selection
-        this.dragging = true;
-        this.dragStartTime = Date.now();
+    if (event.which === 1 && !this.markers.wantToHandleEvent(event)) {
+        // Block native dragging and text selection.
+        event.preventDefault();
+
+        this.dragging          = true;
+        this.dragStartTime     = Date.now();
         this.dragStartPointerX = event.pageX;
         this.dragStartPointerY = event.pageY;
-        this.dragStartOffsetX = this.offsetX;
-        this.dragStartOffsetY = this.offsetY;
-        this.dragPreviousX = event.pageX;
-        this.dragPreviousY = event.pageY;
-        this.dragDistance = 0;
+        this.dragStartOffsetX  = this.offsetX;
+        this.dragStartOffsetY  = this.offsetY;
+        this.dragPreviousX     = event.pageX;
+        this.dragPreviousY     = event.pageY;
+        this.dragDistance      = 0;
     }
 };
 

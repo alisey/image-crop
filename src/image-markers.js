@@ -2,8 +2,6 @@ function ImageMarkers(maxCount) {
     this.maxCount = maxCount;
     this.markers = [];
 
-    this.transformOriginX = 0;
-    this.transformOriginY = 0;
     this.scale = 1;
     this.rotation = 0;
     this.offsetX = 0;
@@ -93,19 +91,21 @@ ImageMarkers.prototype.onMouseUp = function(event) {
     }
 };
 
-ImageMarkers.prototype.wantToHandle = function(event) {
+ImageMarkers.prototype.wantToHandleEvent = function(event) {
     return this.node.contains(event.target);
 };
 
-ImageMarkers.prototype.setTransformOrigin = function(x, y) {
-    this.transformOriginX = x;
-    this.transformOriginY = y;
+ImageMarkers.prototype.setTransform = function(transform) {
+    this.scale    = transform.scale;
+    this.rotation = transform.rotation;
+    this.offsetX  = transform.offsetX;
+    this.offsetY  = transform.offsetY;
 };
 
 ImageMarkers.prototype.updateTransform = function(transform) {
     this.markers.forEach(function(marker) {
-        var x = marker.x - this.transformOriginX - this.offsetX;
-        var y = marker.y - this.transformOriginY - this.offsetY;
+        var x = marker.x - this.offsetX;
+        var y = marker.y - this.offsetY;
 
         x *= transform.scale / this.scale;
         y *= transform.scale / this.scale;
@@ -114,26 +114,15 @@ ImageMarkers.prototype.updateTransform = function(transform) {
         marker.x = x * Math.cos(a) - y * Math.sin(a);
         marker.y = x * Math.sin(a) + y * Math.cos(a);
 
-        marker.x += this.transformOriginX + transform.offsetX;
-        marker.y += this.transformOriginY + transform.offsetY;
+        marker.x += transform.offsetX;
+        marker.y += transform.offsetY;
     }.bind(this));
 
-    this.scale = transform.scale;
-    this.rotation = transform.rotation;
-    this.offsetX = transform.offsetX;
-    this.offsetY = transform.offsetY;
-
+    this.setTransform(transform);
     this.redraw();
 };
 
-ImageMarkers.prototype.resetTransform = function() {
-    this.scale = 1;
-    this.rotation = 0;
-    this.offsetX = 0;
-    this.offsetY = 0;
-};
-
-ImageMarkers.prototype.resetMarkers = function() {
+ImageMarkers.prototype.removeAll = function() {
     for (var i = 0; i < this.markers.length; i++) {
         this.node.removeChild(this.markers[i].node);
     }
