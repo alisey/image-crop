@@ -21,6 +21,7 @@ function CropComponent(options) {
     this.imageFilename = '';
     this.imageBlobURL = '';
     this.markers = new ImageMarkers(this.enableMarkers ? this.maxMarkerCount : 0);
+    this.markers.setTransformOrigin(this.width / 2, this.height / 2);
 
     this.dragging = false;
     this.dragStartTime = 0;
@@ -124,6 +125,9 @@ CropComponent.prototype.setImage = function(imageURL, imageFilename) {
     this.resetControls();
     this.resetTransform();
     this.applyTransform();
+
+    this.markers.resetMarkers();
+    this.markers.resetTransform();
 };
 
 CropComponent.prototype.onFileSelect = function(event) {
@@ -175,6 +179,13 @@ CropComponent.prototype.applyTransform = function() {
         'translate(' + this.offsetX + 'px, ' + this.offsetY + 'px) ' +
         'rotate(' + 180 * this.rotation + 'deg) ' +
         'scale(' + this.scale + ', ' + this.scale + ')';
+
+    this.markers.updateTransform({
+        scale: this.scale,
+        rotation: this.rotation,
+        offsetX: this.offsetX,
+        offsetY: this.offsetY
+    });
 };
 
 CropComponent.prototype.updateTransform = function() {

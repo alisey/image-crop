@@ -2,6 +2,13 @@ function ImageMarkers(maxCount) {
     this.maxCount = maxCount;
     this.markers = [];
 
+    this.transformOriginX = 0;
+    this.transformOriginY = 0;
+    this.scale = 1;
+    this.rotation = 0;
+    this.offsetX = 0;
+    this.offsetY = 0;
+
     this.dragging = false;
     this.dragPreviousY = 0;
     this.dragPreviousX = 0;
@@ -23,17 +30,15 @@ ImageMarkers.prototype.initDOMEvents = function() {
 };
 
 ImageMarkers.prototype.add = function(x, y) {
-    if (this.markers.length < this.maxCount) {
-        var markerNode = document.createElement('div');
-        this.node.appendChild(markerNode);
-        this.markers.push({x: x, y: y, node: markerNode});
-    } else {
-        var closest = this.findClosestMarker(x, y);
-        if (closest) {
-            closest.x = x;
-            closest.y = y;
-        }
+    var markerNode = document.createElement('div');
+    markerNode.appendChild(document.createElement('div'));
+    this.node.appendChild(markerNode);
+    this.markers.push({x: x, y: y, node: markerNode});
+
+    if (this.markers.length > this.maxCount) {
+        this.node.removeChild(this.markers.shift().node);
     }
+
     this.redraw();
 };
 
@@ -44,41 +49,31 @@ ImageMarkers.prototype.addAtScreenCoords = function(screenX, screenY) {
 
 ImageMarkers.prototype.redraw = function() {
     this.markers.forEach(function(marker) {
-        marker.node.style.left = marker.x + 'px';
-        marker.node.style.top  = marker.y + 'px';
+        marker.node.style.transform = 'translate(' + marker.x + 'px, ' + marker.y + 'px)';
     });
 };
 
 ImageMarkers.prototype.getPoints = function() {
     return this.markers.map(function(marker) {
-        return {x: marker.x, y: marker.y};
+        return {x: Math.round(marker.x), y: Math.round(marker.y)};
     });
-};
-
-ImageMarkers.prototype.findClosestMarker = function(x, y) {
-    var closest = null;
-    var minDistance = Infinity;
-    this.markers.forEach(function(m) {
-        var distance = Math.sqrt(Math.pow(m.x - x, 2) + Math.pow(m.y - y, 2));
-        if (distance < minDistance) {
-            minDistance = distance;
-            closest = m;
-        }
-    });
-    return closest;
 };
 
 ImageMarkers.prototype.onMouseDown = function(event) {
     if (event.which === 1) {
-        this.markers.forEach(function(marker) {
-            if (marker.node === event.target) {
+        for (var i = 0; i < this.markers.length; i++) {
+            var marker = this.markers[i];
+            if (marker.node.contains(event.target)) {
                 event.preventDefault();
                 this.dragging = true;
                 this.dragPreviousX = event.pageX;
                 this.dragPreviousY = event.pageY;
                 this.dragItem = marker;
+
+                // Make the most recently used item the last candidate for deletion.
+                this.markers.push(this.markers.splice(i, 1).pop());
             }
-        }.bind(this));
+        }
     }
 };
 
@@ -102,3 +97,45 @@ ImageMarkers.prototype.wantToHandle = function(event) {
     return this.node.contains(event.target);
 };
 
+ImageMarkers.prototype.setTransformOrigin = function(x, y) {
+    this.transformOriginX = x;
+    this.transformOriginY = y;
+};
+
+ImageMarkers.prototype.updateTransform = function(transform) {
+    this.markers.forEach(function(marker) {
+        var x = marker.x - this.transformOriginX - this.offsetX;
+        var y = marker.y - this.transformOriginY - this.offsetY;
+
+        x *= transform.scale / this.scale;
+        y *= transform.scale / this.scale;
+
+        var a = (transform.rotation - this.rotation) * Math.PI;
+        marker.x = x * Math.cos(a) - y * Math.sin(a);
+        marker.y = x * Math.sin(a) + y * Math.cos(a);
+
+        marker.x += this.transformOriginX + transform.offsetX;
+        marker.y += this.transformOriginY + transform.offsetY;
+    }.bind(this));
+
+    this.scale = transform.scale;
+    this.rotation = transform.rotation;
+    this.offsetX = transform.offsetX;
+    this.offsetY = transform.offsetY;
+
+    this.redraw();
+};
+
+ImageMarkers.prototype.resetTransform = function() {
+    this.scale = 1;
+    this.rotation = 0;
+    this.offsetX = 0;
+    this.offsetY = 0;
+};
+
+ImageMarkers.prototype.resetMarkers = function() {
+    for (var i = 0; i < this.markers.length; i++) {
+        this.node.removeChild(this.markers[i].node);
+    }
+    this.markers = [];
+};
