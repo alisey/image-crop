@@ -21,6 +21,7 @@ function CropComponent(options) {
     this.imageFilename = '';
     this.imageBlobURL = '';
     this.markers = new ImageMarkers(this.enableMarkers ? this.maxMarkerCount : 0);
+    this.markers.setTransformOrigin(this.width / 2, this.height / 2);
 
     this.dragging = false;
     this.dragStartTime = 0;
@@ -182,8 +183,8 @@ CropComponent.prototype.applyTransform = function() {
     this.markers.updateTransform({
         scale: this.scale,
         rotation: this.rotation,
-        offsetX: this.width  / 2 + this.offsetX,
-        offsetY: this.height / 2 + this.offsetY
+        offsetX: this.offsetX,
+        offsetY: this.offsetY
     });
 };
 

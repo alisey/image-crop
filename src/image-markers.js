@@ -2,6 +2,8 @@ function ImageMarkers(maxCount) {
     this.maxCount = maxCount;
     this.markers = [];
 
+    this.transformOriginX = 0;
+    this.transformOriginY = 0;
     this.scale = 1;
     this.rotation = 0;
     this.offsetX = 0;
@@ -95,10 +97,15 @@ ImageMarkers.prototype.wantToHandle = function(event) {
     return this.node.contains(event.target);
 };
 
+ImageMarkers.prototype.setTransformOrigin = function(x, y) {
+    this.transformOriginX = x;
+    this.transformOriginY = y;
+};
+
 ImageMarkers.prototype.updateTransform = function(transform) {
     this.markers.forEach(function(marker) {
-        var x = marker.x - this.offsetX;
-        var y = marker.y - this.offsetY;
+        var x = marker.x - this.transformOriginX - this.offsetX;
+        var y = marker.y - this.transformOriginY - this.offsetY;
 
         x *= transform.scale / this.scale;
         y *= transform.scale / this.scale;
@@ -107,8 +114,8 @@ ImageMarkers.prototype.updateTransform = function(transform) {
         marker.x = x * Math.cos(a) - y * Math.sin(a);
         marker.y = x * Math.sin(a) + y * Math.cos(a);
 
-        marker.x += transform.offsetX;
-        marker.y += transform.offsetY;
+        marker.x += this.transformOriginX + transform.offsetX;
+        marker.y += this.transformOriginY + transform.offsetY;
     }.bind(this));
 
     this.scale = transform.scale;
