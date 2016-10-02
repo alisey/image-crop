@@ -6,6 +6,7 @@ var ImageMarkers = window.ImageMarkers;
 function CropComponent(options) {
     this.width            = options.width;
     this.height           = options.height;
+    this.backgroundColor  = options.backgroundColor;
     this.enableFilePicker = options.enableFilePicker;
     this.enableDownload   = options.enableDownload;
     this.enableUpload     = options.enableUpload;
@@ -73,6 +74,8 @@ CropComponent.prototype.initDOM = function() {
     this.downloadButtonNode.style.display    = this.enableDownload   ? '' : 'none';
     this.uploadButtonNode.style.display      = this.enableUpload     ? '' : 'none';
 
+    this.imageBoxNode.style.backgroundColor = this.backgroundColor;
+
     this.imageBoxNode.appendChild(this.markers.getDOMNode());
 };
 
@@ -80,49 +83,25 @@ CropComponent.prototype.initDOMEvents = function() {
     this.fauxInputFileNode.addEventListener('click',
         this.inputFileNode.click.bind(this.inputFileNode));
 
-    this.inputFileNode.addEventListener('change', this.onFileSelect.bind(this));
-    this.inputRotateNode.addEventListener('input', this.onRotationChange.bind(this));
-    this.inputScaleNode.addEventListener('input', this.onScaleChange.bind(this));
+    this.inputFileNode.addEventListener('change',   this.onFileSelect.bind(this));
+    this.inputRotateNode.addEventListener('input',  this.onRotationChange.bind(this));
+    this.inputScaleNode.addEventListener('input',   this.onScaleChange.bind(this));
     this.inputRotateNode.addEventListener('change', this.onRotationChange.bind(this)); // IE
-    this.inputScaleNode.addEventListener('change', this.onScaleChange.bind(this)); // IE
+    this.inputScaleNode.addEventListener('change',  this.onScaleChange.bind(this)); // IE
 
-    this.imageBoxNode.addEventListener('mousedown', this.onDragStart.bind(this));
-    document.addEventListener('mousemove', this.onDragMove.bind(this));
-    document.addEventListener('mouseup', this.onDragEnd.bind(this));
+    this.imageBoxNode.addEventListener('mousedown', this.onMouseDown.bind(this));
+    document.addEventListener('mousemove',          this.onMouseMove.bind(this));
+    document.addEventListener('mouseup',            this.onMouseUp.bind(this));
 
     this.downloadButtonNode.addEventListener('click', this.download.bind(this));
-    this.uploadButtonNode.addEventListener('click', this.upload.bind(this));
-};
-
-CropComponent.prototype.setImage = function(imageURL, imageFilename) {
-    this.imageNode.onload = function() {
-        if (URL.revokeObjectURL) {
-            URL.revokeObjectURL(imageURL);
-        }
-
-        this.node.classList.add('crop-component-image-selected');
-        this.baseScale = Math.min(
-            1, // don't upscale tiny images
-            this.width  / this.imageNode.naturalWidth,
-            this.height / this.imageNode.naturalHeight
-        );
-    }.bind(this);
-
-    this.reset();
-    this.imageFilename = imageFilename;
-    this.imageNode.src = imageURL;
-};
-
-CropComponent.prototype.onFileSelect = function(event) {
-    var url = URL.createObjectURL(event.target.files[0]);
-    this.setImage(url, event.target.value);
+    this.uploadButtonNode.addEventListener('click',   this.upload.bind(this));
 };
 
 CropComponent.prototype.reset = function() {
     this.resetDrag();
     this.resetControls();
     this.resetTransform();
-    this.updateTransformCSS();
+    this.updateTransformStyle();
     this.markers.removeAll();
 };
 
@@ -131,19 +110,72 @@ CropComponent.prototype.resetControls = function() {
     this.inputScaleNode.value = this.inputScaleNode.defaultValue;
 };
 
+// =========================== DRAGGING ======================================
+
 CropComponent.prototype.resetDrag = function() {
-    this.dragging          = false;
-    this.dragStartTime     = 0;
-    this.dragStartPointerX = 0;
-    this.dragStartPointerY = 0;
-    this.dragStartOffsetX  = 0;
-    this.dragStartOffsetY  = 0;
-    this.dragPreviousX     = 0;
-    this.dragPreviousY     = 0;
-    this.dragDistance      = 0;
+    this.dragging = false;
+
+    this.dragStartRelativeX = 0;
+    this.dragStartRelativeY = 0;
+
+    // For detecting drag vs. click
+    this.dragLastX     = 0;
+    this.dragLastY     = 0;
+    this.dragStartTime = 0;
+    this.dragDistance  = 0;
 };
 
+CropComponent.prototype.onMouseDown = function(event) {
+    if (event.which === 1 && !this.markers.wantToHandleDrag(event)) {
+        // Block native drag and drop, and text selection.
+        event.preventDefault();
+
+        this.dragging = true;
+
+        this.dragStartRelativeX = this.offsetX - event.pageX;
+        this.dragStartRelativeY = this.offsetY - event.pageY;
+
+        this.dragLastX     = event.pageX;
+        this.dragLastY     = event.pageY;
+        this.dragStartTime = Date.now();
+        this.dragDistance  = 0;
+    }
+};
+
+CropComponent.prototype.onMouseMove = function(event) {
+    if (this.dragging) {
+        this.offsetX = event.pageX + this.dragStartRelativeX;
+        this.offsetY = event.pageY + this.dragStartRelativeY;
+        this.updateTransform();
+
+        var dx = event.pageX - this.dragLastX;
+        var dy = event.pageY - this.dragLastY;
+        this.dragDistance += Math.sqrt(dx * dx + dy * dy);
+        this.dragLastX = event.pageX;
+        this.dragLastY = event.pageY;
+    }
+};
+
+CropComponent.prototype.onMouseUp = function(event) {
+    if (this.dragging && event.which === 1) {
+        this.dragging = false;
+
+        var dragDistance = this.dragDistance;
+        var dragDuration = Date.now() - this.dragStartTime;
+        if (dragDistance < 4 && dragDuration < 500) {
+            this.markers.addAtScreenCoords(event.clientX, event.clientY);
+        }
+    }
+};
+
+// =============================== TRANSFORMS ================================
+
 CropComponent.prototype.resetTransform = function() {
+    // The image's transform origin is at the center of the container.
+    // `baseScale` is the initial scale factor applied to fit the image into
+    // the container. While it could be combined with `scale`, it's more
+    // convenient to have a separate `scale` going from 1.
+
     this.baseScale = 1;
     this.scale     = 1;
     this.rotation  = 0;
@@ -154,11 +186,14 @@ CropComponent.prototype.resetTransform = function() {
 };
 
 CropComponent.prototype.getTransformForMarkers = function() {
+    // Markers' transform origin is at the top left corner of the container,
+    // while the image's transform origin is at the center of the container.
+
     return {
-        scale: this.scale,
+        scale:    this.scale,
         rotation: this.rotation,
-        offsetX: this.width  / 2 + this.offsetX,
-        offsetY: this.height / 2 + this.offsetY
+        offsetX:  this.width  / 2 + this.offsetX,
+        offsetY:  this.height / 2 + this.offsetY
     };
 };
 
@@ -172,8 +207,12 @@ CropComponent.prototype.getImageBoundingBox = function() {
     };
 };
 
-CropComponent.prototype.applyTransformConstraints = function() {
-    // If the image bounding box is leaving the cropped area, push it back.
+CropComponent.prototype.updateTransformConstraints = function() {
+    // Don't allow to completely drag the image out of the container.
+    // If there's a gap between the axis-aligned bounding box of the image
+    // and the container, push the image back by the size of the gap.
+    // If there are gaps on both sides, e.g. when the image is smaller than
+    // the container, equalize the gaps.
 
     var imageAABB = this.getImageBoundingBox();
     var overflowX = Math.max(0, imageAABB.width  - this.width);
@@ -185,7 +224,7 @@ CropComponent.prototype.applyTransformConstraints = function() {
     this.offsetY = Math.max(this.offsetY, -overflowY / 2);
 };
 
-CropComponent.prototype.updateTransformCSS = function() {
+CropComponent.prototype.updateTransformStyle = function() {
     this.imageNode.style.transform =
         'translate(' + this.offsetX + 'px, ' + this.offsetY + 'px) ' +
         'rotate(' + 180 * this.rotation + 'deg) ' +
@@ -193,50 +232,9 @@ CropComponent.prototype.updateTransformCSS = function() {
 };
 
 CropComponent.prototype.updateTransform = function() {
-    this.applyTransformConstraints();
-    this.updateTransformCSS();
+    this.updateTransformConstraints();
+    this.updateTransformStyle();
     this.markers.updateTransform(this.getTransformForMarkers());
-};
-
-CropComponent.prototype.onDragStart = function(event) {
-    if (event.which === 1 && !this.markers.wantToHandleEvent(event)) {
-        // Block native dragging and text selection.
-        event.preventDefault();
-
-        this.dragging          = true;
-        this.dragStartTime     = Date.now();
-        this.dragStartPointerX = event.pageX;
-        this.dragStartPointerY = event.pageY;
-        this.dragStartOffsetX  = this.offsetX;
-        this.dragStartOffsetY  = this.offsetY;
-        this.dragPreviousX     = event.pageX;
-        this.dragPreviousY     = event.pageY;
-        this.dragDistance      = 0;
-    }
-};
-
-CropComponent.prototype.onDragMove = function(event) {
-    if (this.dragging) {
-        this.offsetX = this.dragStartOffsetX + event.pageX - this.dragStartPointerX;
-        this.offsetY = this.dragStartOffsetY + event.pageY - this.dragStartPointerY;
-        this.updateTransform();
-
-        this.dragDistance += Math.sqrt(
-            Math.pow(event.pageX - this.dragPreviousX, 2),
-            Math.pow(event.pageY - this.dragPreviousY, 2)
-        );
-        this.dragPreviousX = event.pageX;
-        this.dragPreviousY = event.pageY;
-    }
-};
-
-CropComponent.prototype.onDragEnd = function(event) {
-    if (this.dragging && event.which === 1) {
-        this.dragging = false;
-        if (this.dragDistance < 4 && Date.now() - this.dragStartTime < 500) {
-            this.markers.addAtScreenCoords(event.clientX, event.clientY);
-        }
-    }
 };
 
 CropComponent.prototype.onRotationChange = function() {
@@ -264,6 +262,32 @@ CropComponent.prototype.onScaleChange = function() {
     this.updateTransform();
 };
 
+// ============================== INPUT / OUTPUT =============================
+
+CropComponent.prototype.setImage = function(imageURL, imageFilename) {
+    this.imageNode.onload = function() {
+        if (URL.revokeObjectURL) {
+            URL.revokeObjectURL(imageURL);
+        }
+
+        this.node.classList.add('crop-component-image-selected');
+        this.baseScale = Math.min(
+            1, // don't upscale tiny images
+            this.width  / this.imageNode.naturalWidth,
+            this.height / this.imageNode.naturalHeight
+        );
+    }.bind(this);
+
+    this.reset();
+    this.imageFilename = imageFilename;
+    this.imageNode.src = imageURL;
+};
+
+CropComponent.prototype.onFileSelect = function(event) {
+    var url = URL.createObjectURL(event.target.files[0]);
+    this.setImage(url, event.target.value);
+};
+
 CropComponent.prototype.getTransformedImageFilename = function() {
     var filename = this.imageFilename;
     filename = filename.split(/[\/\\]/).pop(); // strip path
@@ -283,7 +307,7 @@ CropComponent.prototype.getTransformedImageBlob = function(callback) {
             self.rotation * Math.PI,
             self.baseScale * self.scale,
             self.offsetX, self.offsetY,
-            '#bebebe',
+            self.backgroundColor,
             function(canvas) {
                 canvas.toBlob(callback, 'image/jpeg', 0.95);
             }

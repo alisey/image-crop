@@ -2,15 +2,15 @@ function ImageMarkers(maxCount) {
     this.maxCount = maxCount;
     this.markers = [];
 
-    this.scale = 1;
+    this.scale    = 1;
     this.rotation = 0;
-    this.offsetX = 0;
-    this.offsetY = 0;
+    this.offsetX  = 0;
+    this.offsetY  = 0;
 
-    this.dragging = false;
-    this.dragPreviousY = 0;
-    this.dragPreviousX = 0;
-    this.dragItem = null;
+    this.dragging  = false;
+    this.dragLastX = 0;
+    this.dragLastY = 0;
+    this.dragItem  = null;
 
     this.node = document.createElement('div');
     this.node.className = 'image-markers';
@@ -34,7 +34,9 @@ ImageMarkers.prototype.add = function(x, y) {
     this.markers.push({x: x, y: y, node: markerNode});
 
     if (this.markers.length > this.maxCount) {
-        this.node.removeChild(this.markers.shift().node);
+        // The least recently used marker is replaced first.
+        var removedMarker = this.markers.shift();
+        this.node.removeChild(removedMarker.node);
     }
 
     this.redraw();
@@ -62,13 +64,16 @@ ImageMarkers.prototype.onMouseDown = function(event) {
         for (var i = 0; i < this.markers.length; i++) {
             var marker = this.markers[i];
             if (marker.node.contains(event.target)) {
+                // Block native drag and drop, and text selection.
                 event.preventDefault();
-                this.dragging = true;
-                this.dragPreviousX = event.pageX;
-                this.dragPreviousY = event.pageY;
-                this.dragItem = marker;
 
-                // Make the most recently used item the last candidate for deletion.
+                this.dragging  = true;
+                this.dragLastX = event.pageX;
+                this.dragLastY = event.pageY;
+                this.dragItem  = marker;
+
+                // The marker most recently interacted with is the last to
+                // replace when adding new markers.
                 this.markers.push(this.markers.splice(i, 1).pop());
             }
         }
@@ -77,10 +82,10 @@ ImageMarkers.prototype.onMouseDown = function(event) {
 
 ImageMarkers.prototype.onMouseMove = function(event) {
     if (this.dragging) {
-        this.dragItem.x += event.pageX - this.dragPreviousX;
-        this.dragItem.y += event.pageY - this.dragPreviousY;
-        this.dragPreviousX = event.pageX;
-        this.dragPreviousY = event.pageY;
+        this.dragItem.x += event.pageX - this.dragLastX;
+        this.dragItem.y += event.pageY - this.dragLastY;
+        this.dragLastX = event.pageX;
+        this.dragLastY = event.pageY;
         this.redraw();
     }
 };
@@ -91,7 +96,7 @@ ImageMarkers.prototype.onMouseUp = function(event) {
     }
 };
 
-ImageMarkers.prototype.wantToHandleEvent = function(event) {
+ImageMarkers.prototype.wantToHandleDrag = function(event) {
     return this.node.contains(event.target);
 };
 
