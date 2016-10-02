@@ -148,24 +148,12 @@ CropComponent.prototype.resetTransform = function() {
 };
 
 CropComponent.prototype.getImageBoundingBox = function() {
-    // Coordinates of the bottom right corner of the image relative to its
-    // center before rotation around the image center.
-    var x = this.imageNode.naturalWidth  * this.baseScale * this.scale / 2;
-    var y = this.imageNode.naturalHeight * this.baseScale * this.scale / 2;
-
-    // Coordinates of the top right and bottom right corners after rotation.
+    var w = this.imageNode.naturalWidth  * this.baseScale * this.scale;
+    var h = this.imageNode.naturalHeight * this.baseScale * this.scale;
     var a = this.rotation * Math.PI;
-    var sinA = Math.sin(a);
-    var cosA = Math.cos(a);
-    var x1 = x * cosA - y * sinA;
-    var y1 = x * sinA + y * cosA;
-    var x2 = x * cosA + y * sinA;
-    var y2 = x * sinA - y * cosA;
-
-    // The remaining two corners are simply reflections of the first two.
     return {
-        width:  Math.max(x1, x2, -x1, -x2) - Math.min(x1, x2, -x1, -x2),
-        height: Math.max(y1, y2, -y1, -y2) - Math.min(y1, y2, -y1, -y2)
+        width:  Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a)),
+        height: Math.abs(w * Math.sin(a)) + Math.abs(h * Math.cos(a))
     };
 };
 
@@ -236,17 +224,12 @@ CropComponent.prototype.onDragEnd = function(event) {
 CropComponent.prototype.onRotationChange = function() {
     var newRotation = this.inputRotateNode.value;
 
-    // Rotate as if the transform origin is at the center of the cropped area.
-    // Imagine putting a mark on the image at the center of the cropped area,
-    // find out where the mark would end up if we rotated the image around its
-    // center, compensate for that movement so that the mark stays in place.
-    var angle = (newRotation - this.rotation) * Math.PI;
-    var oldX = -this.offsetX;
-    var oldY = -this.offsetY;
-    var newX = oldX * Math.cos(angle) - oldY * Math.sin(angle);
-    var newY = oldX * Math.sin(angle) + oldY * Math.cos(angle);
-    this.offsetX -= newX - oldX;
-    this.offsetY -= newY - oldY;
+    // Rotate as if the transform origin is at the center of the box.
+    var a = (newRotation - this.rotation) * Math.PI;
+    var x = this.offsetX;
+    var y = this.offsetY;
+    this.offsetX = x * Math.cos(a) - y * Math.sin(a);
+    this.offsetY = x * Math.sin(a) + y * Math.cos(a);
 
     this.rotation = newRotation;
     this.updateTransform();
@@ -255,16 +238,9 @@ CropComponent.prototype.onRotationChange = function() {
 CropComponent.prototype.onScaleChange = function() {
     var newScale = Math.pow(10, this.inputScaleNode.value);
 
-    // Scale as if the transform origin is at the center of the cropped area.
-    // Imagine putting a mark on the image at the center of the cropped area,
-    // find out where the mark would end up if we scaled the image around its
-    // center, compensate for that movement so that the mark stays in place.
-    var oldX = -this.offsetX;
-    var oldY = -this.offsetY;
-    var newX = oldX * newScale / this.scale;
-    var newY = oldY * newScale / this.scale;
-    this.offsetX -= newX - oldX;
-    this.offsetY -= newY - oldY;
+    // Scale as if the transform origin is at the center of the box.
+    this.offsetX *= newScale / this.scale;
+    this.offsetY *= newScale / this.scale;
 
     this.scale = newScale;
     this.updateTransform();
@@ -281,7 +257,7 @@ CropComponent.prototype.getTransformedImageFilename = function() {
 CropComponent.prototype.getTransformedImageBlob = function(callback) {
     var self = this;
 
-    // Since transformImage can block, give some time for UI changes processing.
+    // Since transformImage can block, give UI some time to update.
     setTimeout(function() {
         transformImage(
             self.imageNode,
