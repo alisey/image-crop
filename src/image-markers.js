@@ -42,9 +42,9 @@ ImageMarkers.prototype.add = function(x, y) {
     this.redraw();
 };
 
-ImageMarkers.prototype.addAtScreenCoords = function(screenX, screenY) {
-    var box = this.node.getBoundingClientRect();
-    this.add(screenX - box.left, screenY - box.top);
+ImageMarkers.prototype.addAtWindowCoords = function(windowX, windowY) {
+    var origin = this.node.getBoundingClientRect();
+    this.add(windowX - origin.left, windowY - origin.top);
 };
 
 ImageMarkers.prototype.redraw = function() {
@@ -73,8 +73,10 @@ ImageMarkers.prototype.onMouseDown = function(event) {
                 this.dragItem  = marker;
 
                 // The marker most recently interacted with is the last to
-                // replace when adding new markers.
-                this.markers.push(this.markers.splice(i, 1).pop());
+                // be replaced when adding new markers.
+                this.markers.splice(i, 1);
+                this.markers.push(marker);
+                break;
             }
         }
     }

@@ -163,7 +163,7 @@ CropComponent.prototype.onMouseUp = function(event) {
         var dragDistance = this.dragDistance;
         var dragDuration = Date.now() - this.dragStartTime;
         if (dragDistance < 4 && dragDuration < 500) {
-            this.markers.addAtScreenCoords(event.clientX, event.clientY);
+            this.markers.addAtWindowCoords(event.clientX, event.clientY);
         }
     }
 };
